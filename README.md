@@ -5,14 +5,6 @@
 
 https://tool.706632.xyz/passwd.php
 
-演示截图
-<p align="center">
-<img src="https://storage.googleapis.com/gemini-prod/images/2024/05/20/image_1.png" alt="浅色主题下的密码生成器界面" width="48%">
-&nbsp;
-<img src="https://storage.googleapis.com/gemini-prod/images/2024/05/20/image_2.png" alt="深色主题下的密码生成器界面" width="48%">
-</p>
-<p align="center"><em>应用在浅色和深色主题下的外观</em></p>
-
 ✨ 主要功能
 这个应用虽小，但功能强大，注重安全性和用户体验。
 
@@ -61,7 +53,6 @@ https://tool.706632.xyz/passwd.php
 前端:
 
 使用原生JavaScript（ES6+）和Fetch API来处理异步请求。
-.
 
 CSS使用变量（var()）来轻松管理浅色和深色主题的颜色方案。
 
