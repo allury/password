@@ -8,13 +8,31 @@
  * 用于安全地生成密码，以及一个现代、响应式的前端界面
  * 用于用户交互。
  *
- * @version    1.0.0 (正式版)
+ * @version    1.1.0
  * @author     编码助手
- * @lastupdate 2025-08-07
+ * @lastupdate 2026-07-11
  * ====================================================================
  */
 
 // --- 核心功能：安全地生成密码 ---
+
+/**
+ * 使用 Fisher-Yates 算法安全打乱字符串
+ *
+ * @param string $string
+ * @return string
+ */
+function secure_str_shuffle(string $string): string {
+    $chars = str_split($string);
+    $n = count($chars);
+    for ($i = $n - 1; $i > 0; $i--) {
+        $j = random_int(0, $i);
+        $tmp = $chars[$i];
+        $chars[$i] = $chars[$j];
+        $chars[$j] = $tmp;
+    }
+    return implode('', $chars);
+}
 
 /**
  * 根据指定的标准生成一个加密安全的随机密码。
@@ -61,7 +79,7 @@ function generate_secure_password(int $length, bool $include_uppercase, bool $in
     }
 
     // 检查密码长度是否足够容纳所有选定的字符类型
-    $selected_types_count = ($include_uppercase + $include_lowercase + $include_numbers + $include_symbols);
+    $selected_types_count = (int)$include_uppercase + (int)$include_lowercase + (int)$include_numbers + (int)$include_symbols;
     if ($length < $selected_types_count) {
         return '错误：密码长度不能小于所选字符类型的数量。';
     }
@@ -77,15 +95,18 @@ function generate_secure_password(int $length, bool $include_uppercase, bool $in
     }
     
     // 步骤3: 打乱密码字符串，避免初始字符的位置是固定的
-    return str_shuffle($password);
+    return secure_str_shuffle($password);
 }
 
 // --- 页面逻辑：处理用户输入和显示 ---
 
 // 初始化密码选项的默认值
 $generated_password = '';
+$raw_length = (int)($_POST['length'] ?? 16);
+$length = max(8, min(50, $raw_length));
+
 $options = [
-    'length' => $_POST['length'] ?? 16,
+    'length' => $length,
     'lowercase' => isset($_POST['form_submitted']) ? isset($_POST['lowercase']) : true,
     'uppercase' => isset($_POST['form_submitted']) ? isset($_POST['uppercase']) : true,
     'numbers' => isset($_POST['form_submitted']) ? isset($_POST['numbers']) : true,
@@ -99,7 +120,7 @@ if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) &&
     $_SERVER['REQUEST_METHOD'] === 'POST') {
     
     $generated_password = generate_secure_password(
-        (int)($_POST['length'] ?? 16),
+        $length,
         (bool)($_POST['uppercase'] ?? false),
         (bool)($_POST['lowercase'] ?? false),
         (bool)($_POST['numbers'] ?? false),
@@ -114,7 +135,7 @@ if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) &&
 // 常规表单提交用于在JavaScript被禁用的情况下也能正常工作
 else if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $generated_password = generate_secure_password(
-        (int)$options['length'],
+        $length,
         (bool)$options['uppercase'],
         (bool)$options['lowercase'],
         (bool)$options['numbers'],
@@ -127,7 +148,6 @@ else if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- [优化] 更新页面标题 -->
     <title>安全密码生成器</title>
     <style>
         /* --- 引入外部字体 --- */
@@ -156,7 +176,7 @@ else if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         /* --- 密码显示与操作按钮 --- */
         #result { width: 100%; padding: 14px 16px; border: 1px solid var(--border-color); border-radius: 12px; font-size: 20px; background: var(--input-bg-color); word-break: break-all; height: 80px; resize: none; overflow-y: auto; color: var(--text-color); transition: var(--transition); font-family: 'Courier New', Courier, monospace; display: flex; align-items: center; justify-content: center; text-align: center; }
-        #result:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px var(--primary-color-hover-bg, rgba(59, 130, 246, 0.2)); }
+        #result:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
         body.dark-mode #result:focus { box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.3); }
         .password-actions { display: flex; gap: 12px; margin-top: 15px; }
         .btn { flex: 1; padding: 12px 15px; border-radius: 12px; font-weight: 600; font-size: 16px; cursor: pointer; transition: var(--transition); display: flex; align-items: center; justify-content: center; gap: 8px; border: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
@@ -205,37 +225,90 @@ else if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         <!-- 头部区域 -->
         <header class="header">
-            <!-- [优化] 更新主标题 -->
             <h1>安全密码生成器</h1>
             <p>快速创建高强度、可自定义的随机密码</p>
             <div class="theme-toggle">
-                <button id="light-theme">☀️ 浅色</button>
-                <button id="dark-theme">🌙 深色</button>
+                <button id="light-theme" type="button">☀️ 浅色</button>
+                <button id="dark-theme" type="button">🌙 深色</button>
             </div>
         </header>
         
-        <!-- 密码显示与操作区域 -->
-        <div class="password-display">
-            <textarea id="result" rows="1" readonly placeholder="点击“生成”按钮创建密码"><?php echo htmlspecialchars($generated_password); ?></textarea>
-            <div class="password-actions">
-                <button class="btn btn-copy" id="copyBtn" aria-live="polite"><span class="state-default" style="display: inline-flex; align-items: center; gap: 8px;"><svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><span>复制密码</span></span><span class="state-success" style="display: none; align-items: center; gap: 8px;"><svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg><span>已复制!</span></span></button>
-                <button class="btn btn-generate" id="generateBtn"><span class="state-default" style="display: inline-flex; align-items: center; gap: 8px;"><svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"/></svg><span>生成</span></span><span class="state-loading" style="display: none; align-items: center; gap: 8px;"><svg width="18" height="18" viewBox="0 0 24 24" style="animation: spin 1s linear infinite;"><path fill="currentColor" d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z"/></svg><span>生成中...</span></span></button>
+        <form id="passwordForm" method="post">
+            <input type="hidden" name="form_submitted" value="1">
+            
+            <!-- 密码显示与操作区域 -->
+            <div class="password-display">
+                <textarea id="result" rows="1" readonly placeholder="点击“生成”按钮创建密码"><?php echo htmlspecialchars($generated_password); ?></textarea>
+                <div class="password-actions">
+                    <button type="button" class="btn btn-copy" id="copyBtn" aria-live="polite">
+                        <span class="state-default" style="display: inline-flex; align-items: center; gap: 8px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg>
+                            <span>复制密码</span>
+                        </span>
+                        <span class="state-success" style="display: none; align-items: center; gap: 8px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg>
+                            <span>已复制!</span>
+                        </span>
+                    </button>
+                    <button type="submit" class="btn btn-generate" id="generateBtn">
+                        <span class="state-default" style="display: inline-flex; align-items: center; gap: 8px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"/></svg>
+                            <span>生成</span>
+                        </span>
+                        <span class="state-loading" style="display: none; align-items: center; gap: 8px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" style="animation: spin 1s linear infinite;"><path fill="currentColor" d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z"/></svg>
+                            <span>生成中...</span>
+                        </span>
+                    </button>
+                </div>
             </div>
-        </div>
-        
-        <!-- 选项表单区域 -->
-        <div class="options-section">
-            <h2 class="options-title">自定义选项</h2>
-            <form id="passwordForm" method="post">
-                <input type="hidden" name="form_submitted" value="1">
-                <div class="form-group"><label for="length">密码长度</label><div class="length-control"><button class="btn-decrement" type="button" id="decrement">-</button><input type="number" id="length" name="length" class="length-input" min="8" max="50" value="<?php echo (int)$options['length']; ?>"><button class="btn-increment" type="button" id="increment">+</button></div></div>
-                <div class="switch-container"><label for="lowercase">小写字母 (a-z)</label><label class="switch"><input type="checkbox" name="lowercase" id="lowercase" <?php if ($options['lowercase']) echo 'checked'; ?>><span class="slider"></span></label></div>
-                <div class="switch-container"><label for="uppercase">大写字母 (A-Z)</label><label class="switch"><input type="checkbox" name="uppercase" id="uppercase" <?php if ($options['uppercase']) echo 'checked'; ?>><span class="slider"></span></label></div>
-                <div class="switch-container"><label for="numbers">数字 (0-9)</label><label class="switch"><input type="checkbox" name="numbers" id="numbers" <?php if ($options['numbers']) echo 'checked'; ?>><span class="slider"></span></label></div>
-                <div class="switch-container"><label for="symbols">特殊符号 (!@#...)</label><label class="switch"><input type="checkbox" name="symbols" id="symbols" <?php if ($options['symbols']) echo 'checked'; ?>><span class="slider"></span></label></div>
-                <div class="strength-meter"><span class="strength-label">密码强度:</span><div class="indicator"><div class="progress" id="strengthIndicator"></div></div><span class="strength-text" id="strengthText">-</span></div>
-            </form>
-        </div>
+            
+            <!-- 选项表单区域 -->
+            <div class="options-section">
+                <h2 class="options-title">自定义选项</h2>
+                <div class="form-group">
+                    <label for="length">密码长度</label>
+                    <div class="length-control">
+                        <button class="btn-decrement" type="button" id="decrement">-</button>
+                        <input type="number" id="length" name="length" class="length-input" min="8" max="50" value="<?php echo (int)$options['length']; ?>">
+                        <button class="btn-increment" type="button" id="increment">+</button>
+                    </div>
+                </div>
+                <div class="switch-container">
+                    <label for="lowercase">小写字母 (a-z)</label>
+                    <label class="switch">
+                        <input type="checkbox" name="lowercase" id="lowercase" <?php if ($options['lowercase']) echo 'checked'; ?>>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="switch-container">
+                    <label for="uppercase">大写字母 (A-Z)</label>
+                    <label class="switch">
+                        <input type="checkbox" name="uppercase" id="uppercase" <?php if ($options['uppercase']) echo 'checked'; ?>>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="switch-container">
+                    <label for="numbers">数字 (0-9)</label>
+                    <label class="switch">
+                        <input type="checkbox" name="numbers" id="numbers" <?php if ($options['numbers']) echo 'checked'; ?>>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="switch-container">
+                    <label for="symbols">特殊符号 (!@#...)</label>
+                    <label class="switch">
+                        <input type="checkbox" name="symbols" id="symbols" <?php if ($options['symbols']) echo 'checked'; ?>>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="strength-meter">
+                    <span class="strength-label">密码强度:</span>
+                    <div class="indicator"><div class="progress" id="strengthIndicator"></div></div>
+                    <span class="strength-text" id="strengthText">-</span>
+                </div>
+            </div>
+        </form>
     </div>
 
     <script>
@@ -347,16 +420,41 @@ else if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }).catch(err => { console.error('无法复制密码: ', err); });
             });
             
-            // 生成按钮
-            generateBtn.addEventListener('click', (e) => { e.preventDefault(); generatePassword(); });
+            // 表单提交（有 JS 时使用 AJAX）
+            passwordForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                generatePassword();
+            });
             
             // 长度控制器
-            decrementBtn.addEventListener('click', () => { const currentLength = parseInt(lengthInput.value); if (currentLength > parseInt(lengthInput.min)) { lengthInput.value = currentLength - 1; generatePassword(); } });
-            incrementBtn.addEventListener('click', () => { const currentLength = parseInt(lengthInput.value); if (currentLength < parseInt(lengthInput.max)) { lengthInput.value = currentLength + 1; generatePassword(); } });
-            lengthInput.addEventListener('change', () => { let len = parseInt(lengthInput.value); const min = parseInt(lengthInput.min); const max = parseInt(lengthInput.max); if (isNaN(len) || len < min) { len = min; } else if (len > max) { len = max; } lengthInput.value = len; generatePassword(); });
+            decrementBtn.addEventListener('click', () => { 
+                const currentLength = parseInt(lengthInput.value); 
+                if (currentLength > parseInt(lengthInput.min)) { 
+                    lengthInput.value = currentLength - 1; 
+                    generatePassword(); 
+                } 
+            });
+            incrementBtn.addEventListener('click', () => { 
+                const currentLength = parseInt(lengthInput.value); 
+                if (currentLength < parseInt(lengthInput.max)) { 
+                    lengthInput.value = currentLength + 1; 
+                    generatePassword(); 
+                } 
+            });
+            lengthInput.addEventListener('change', () => { 
+                let len = parseInt(lengthInput.value); 
+                const min = parseInt(lengthInput.min); 
+                const max = parseInt(lengthInput.max); 
+                if (isNaN(len) || len < min) { len = min; } 
+                else if (len > max) { len = max; } 
+                lengthInput.value = len; 
+                generatePassword(); 
+            });
             
             // 字符类型选项
-            ['lowercase', 'uppercase', 'numbers', 'symbols'].forEach(option => { getEl(option).addEventListener('change', generatePassword); });
+            ['lowercase', 'uppercase', 'numbers', 'symbols'].forEach(option => { 
+                getEl(option).addEventListener('change', generatePassword); 
+            });
             
             // --- 初始化 ---
             // 如果页面加载时已有密码（例如，在非JS环境下提交表单后），则更新强度指示器
