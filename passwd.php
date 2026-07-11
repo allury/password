@@ -51,24 +51,29 @@ function generate_secure_password(int $length, bool $include_uppercase, bool $in
     $number_chars = '0123456789';
     $symbol_chars = '!@#$%^&*()-_=+[]{}|;:,.<>?';
 
+    // 默认开启：过滤常见混淆字符（0 O 1 l I 等）
+    $ambiguous = '0O1lI';
+    $lowercase_chars = str_replace(str_split($ambiguous), '', $lowercase_chars);
+    $uppercase_chars = str_replace(str_split($ambiguous), '', $uppercase_chars);
+    $number_chars    = str_replace(str_split($ambiguous), '', $number_chars);
+
     $char_pool = ''; // 用于填充密码剩余长度的字符池
     $password = '';  // 最终的密码
 
     // 步骤1: 确保每种选定的字符类型都至少在密码中出现一次
-    // 这可以保证密码的复杂性，满足大多数网站的密码策略要求。
-    if ($include_lowercase) {
+    if ($include_lowercase && $lowercase_chars !== '') {
         $char_pool .= $lowercase_chars;
         $password .= $lowercase_chars[random_int(0, strlen($lowercase_chars) - 1)];
     }
-    if ($include_uppercase) {
+    if ($include_uppercase && $uppercase_chars !== '') {
         $char_pool .= $uppercase_chars;
         $password .= $uppercase_chars[random_int(0, strlen($uppercase_chars) - 1)];
     }
-    if ($include_numbers) {
+    if ($include_numbers && $number_chars !== '') {
         $char_pool .= $number_chars;
         $password .= $number_chars[random_int(0, strlen($number_chars) - 1)];
     }
-    if ($include_symbols) {
+    if ($include_symbols && $symbol_chars !== '') {
         $char_pool .= $symbol_chars;
         $password .= $symbol_chars[random_int(0, strlen($symbol_chars) - 1)];
     }
@@ -84,17 +89,20 @@ function generate_secure_password(int $length, bool $include_uppercase, bool $in
         return '错误：密码长度不能小于所选字符类型的数量。';
     }
 
-    // 步骤2: 使用完整的字符池随机填充密码的剩余部分
+    // 步骤2: 使用完整的字符池随机填充密码的剩余部分（默认避免连续重复字符）
     $remaining_length = $length - strlen($password);
     if ($remaining_length > 0) {
         $pool_length = strlen($char_pool) - 1;
         for ($i = 0; $i < $remaining_length; $i++) {
-            // 使用 random_int() 来确保加密级别的安全性，防止可预测的密码
-            $password .= $char_pool[random_int(0, $pool_length)];
+            // 默认开启：避免连续相同字符
+            do {
+                $new_char = $char_pool[random_int(0, $pool_length)];
+            } while (strlen($password) > 0 && $new_char === $password[-1]);
+            $password .= $new_char;
         }
     }
     
-    // 步骤3: 打乱密码字符串，避免初始字符的位置是固定的
+    // 步骤3: 打乱密码字符串
     return secure_str_shuffle($password);
 }
 
